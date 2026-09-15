@@ -45,11 +45,11 @@ Then add SeramitaeLib as a dependency:
 
 ```gradle
 dependencies {
-    implementation 'org.seramitae:seramitaelib:0.1.1'
+    implementation 'org.seramitae:seramitaelib:0.1.2'
 }
 ```
 
-Replace `0.1.1` with the version you want to use.
+Replace `0.1.2` with the version you want to use.
 
 Your GitHub credentials can be stored in `gradle.properties`:
 
