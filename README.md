@@ -14,7 +14,7 @@ intake.setPower(1);
 Current Maven coordinate:
 
 ```text
-org.seramitae:seramitaelib:0.1.0
+org.seramitae:seramitaelib:0.1.1
 ```
 
 The library compiles against FTC SDK 11.2.1. It is published to GitHub Packages; because the repository is private, consuming projects need GitHub Packages authentication. Configure credentials outside the repository, for example in your user Gradle properties file, and never commit a token.
