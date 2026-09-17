@@ -18,6 +18,7 @@ SeramitaeLib currently includes:
 * `CRServoEx`
 * `CRServoGroup`
 * `RGBLight`
+* `MecanumDrive`
 
 ### Controllers
 
@@ -75,11 +76,11 @@ Then add SeramitaeLib as a dependency:
 
 ```gradle
 dependencies {
-    implementation 'org.seramitae:seramitaelib:0.2.0'
+    implementation 'org.seramitae:seramitaelib:0.2.2'
 }
 ```
 
-Replace `0.2.0` with the version you want to use.
+Replace `0.2.2` with the version you want to use.
 
 Your GitHub credentials can be stored in `gradle.properties`:
 
@@ -1115,6 +1116,72 @@ light.forceSetPosition(0.5);
 
 ---
 
+# MecanumDrive
+
+Import:
+
+```java
+import org.seramitae.ftc.drive.MecanumDrive;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+```
+
+`MecanumDrive` provides normalized robot-centric and IMU-based field-centric control for four-motor mecanum drivetrains.
+
+Create a drive directly from hardware names:
+
+```java
+MecanumDrive drive = new MecanumDrive(
+        hardwareMap,
+        "frontLeft",
+        "frontRight",
+        "backLeft",
+        "backRight",
+        "imu"
+)
+        .initializeIMU(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+        )
+        .brake();
+```
+
+Robot-centric control:
+
+```java
+drive.driveRobotCentric(
+        -gamepad1.left_stick_y,
+        gamepad1.left_stick_x,
+        gamepad1.right_stick_x
+);
+```
+
+Field-centric control:
+
+```java
+drive.setDriveMode(
+        MecanumDrive.DriveMode.FIELD_CENTRIC
+);
+
+drive.drive(
+        -gamepad1.left_stick_y,
+        gamepad1.left_stick_x,
+        gamepad1.right_stick_x
+);
+```
+
+Other useful operations:
+
+```java
+drive.setSpeedMultiplier(0.6);
+drive.resetHeading();
+drive.resetYaw();
+drive.stop();
+```
+
+The IMU is only required for field-centric driving and heading operations. Reverse any drivetrain motors as appropriate for your robot using the individual `Motor` accessors, such as `drive.getFrontRight().reverse()`.
+
+---
+
 # Controllers
 
 SeramitaeLib includes reusable feedback controllers under:
@@ -1985,6 +2052,9 @@ org.seramitae.ftc
 │       ├── SimpleMotorFeedforward.java
 │       ├── ArmFeedforward.java
 │       └── ElevatorFeedforward.java
+│
+├── drive
+│   └── MecanumDrive.java
 │
 └── hardware
     │
