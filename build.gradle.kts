@@ -3,7 +3,7 @@ plugins {
     id("maven-publish")
 }
 
-val libraryVersion = providers.gradleProperty("libraryVersion").getOrElse("0.2.2")
+val libraryVersion = providers.gradleProperty("libraryVersion").getOrElse("0.2.3")
 
 group = "org.seramitae"
 version = libraryVersion

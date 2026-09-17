@@ -76,11 +76,11 @@ Then add SeramitaeLib as a dependency:
 
 ```gradle
 dependencies {
-    implementation 'org.seramitae:seramitaelib:0.2.2'
+    implementation 'org.seramitae:seramitaelib:0.2.3'
 }
 ```
 
-Replace `0.2.2` with the version you want to use.
+Replace `0.2.3` with the version you want to use.
 
 Your GitHub credentials can be stored in `gradle.properties`:
 
@@ -1158,9 +1158,7 @@ drive.driveRobotCentric(
 Field-centric control:
 
 ```java
-drive.setDriveMode(
-        MecanumDrive.DriveMode.FIELD_CENTRIC
-);
+drive.fieldCentric();
 
 drive.drive(
         -gamepad1.left_stick_y,
@@ -1178,7 +1176,7 @@ drive.resetYaw();
 drive.stop();
 ```
 
-The IMU is only required for field-centric driving and heading operations. Reverse any drivetrain motors as appropriate for your robot using the individual `Motor` accessors, such as `drive.getFrontRight().reverse()`.
+Return to robot-centric mode with `drive.robotCentric()`. The IMU is only required for field-centric driving and heading operations; use `drive.hasIMU()` when setup is conditional. Reverse any drivetrain motors as appropriate for your robot using the individual `Motor` accessors, such as `drive.getFrontRight().reverse()`.
 
 ---
 

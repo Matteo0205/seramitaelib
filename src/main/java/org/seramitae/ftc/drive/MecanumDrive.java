@@ -26,7 +26,6 @@ public class MecanumDrive {
             DriveMode.ROBOT_CENTRIC;
 
     private double speedMultiplier = 1.0;
-
     private double headingOffset = 0.0;
 
     public MecanumDrive(
@@ -35,6 +34,13 @@ public class MecanumDrive {
             Motor backLeft,
             Motor backRight
     ) {
+        validateMotors(
+                frontLeft,
+                frontRight,
+                backLeft,
+                backRight
+        );
+
         this.frontLeft = frontLeft;
         this.frontRight = frontRight;
         this.backLeft = backLeft;
@@ -55,7 +61,27 @@ public class MecanumDrive {
                 backRight
         );
 
-        this.imu = imu;
+        setIMU(imu);
+    }
+
+    public MecanumDrive(
+            Motor frontLeft,
+            Motor frontRight,
+            Motor backLeft,
+            Motor backRight,
+            HardwareMap hardwareMap,
+            String imuName
+    ) {
+        this(
+                frontLeft,
+                frontRight,
+                backLeft,
+                backRight,
+                hardwareMap.get(
+                        IMU.class,
+                        imuName
+                )
+        );
     }
 
     public MecanumDrive(
@@ -101,22 +127,18 @@ public class MecanumDrive {
                 backRightName
         );
 
-        this.imu = hardwareMap.get(
-                IMU.class,
-                imuName
-        );
+        this.imu =
+                hardwareMap.get(
+                        IMU.class,
+                        imuName
+                );
     }
 
     public MecanumDrive initializeIMU(
             RevHubOrientationOnRobot.LogoFacingDirection logo,
             RevHubOrientationOnRobot.UsbFacingDirection usb
     ) {
-
-        if (imu == null) {
-            throw new IllegalStateException(
-                    "No IMU has been configured"
-            );
-        }
+        requireIMU();
 
         RevHubOrientationOnRobot orientation =
                 new RevHubOrientationOnRobot(
@@ -124,11 +146,12 @@ public class MecanumDrive {
                         usb
                 );
 
-        imu.initialize(
+        IMU.Parameters parameters =
                 new IMU.Parameters(
                         orientation
-                )
-        );
+                );
+
+        imu.initialize(parameters);
 
         return this;
     }
@@ -138,9 +161,8 @@ public class MecanumDrive {
             double strafe,
             double turn
     ) {
-
-        if (driveMode
-                == DriveMode.FIELD_CENTRIC) {
+        if (driveMode ==
+                DriveMode.FIELD_CENTRIC) {
 
             return driveFieldCentric(
                     forward,
@@ -161,7 +183,6 @@ public class MecanumDrive {
             double strafe,
             double turn
     ) {
-
         double denominator =
                 Math.max(
                         Math.abs(forward)
@@ -174,26 +195,24 @@ public class MecanumDrive {
                 (forward + strafe + turn)
                         / denominator;
 
-        double backLeftPower =
-                (forward - strafe + turn)
-                        / denominator;
-
         double frontRightPower =
                 (forward - strafe - turn)
+                        / denominator;
+
+        double backLeftPower =
+                (forward - strafe + turn)
                         / denominator;
 
         double backRightPower =
                 (forward + strafe - turn)
                         / denominator;
 
-        setMotorPowers(
+        return setMotorPowers(
                 frontLeftPower,
                 frontRightPower,
                 backLeftPower,
                 backRightPower
         );
-
-        return this;
     }
 
     public MecanumDrive driveFieldCentric(
@@ -201,19 +220,24 @@ public class MecanumDrive {
             double strafe,
             double turn
     ) {
-
         requireIMU();
 
         double heading =
                 getHeadingRadians();
 
+        double cos =
+                Math.cos(-heading);
+
+        double sin =
+                Math.sin(-heading);
+
         double rotatedStrafe =
-                strafe * Math.cos(-heading)
-                        - forward * Math.sin(-heading);
+                strafe * cos
+                        - forward * sin;
 
         double rotatedForward =
-                strafe * Math.sin(-heading)
-                        + forward * Math.cos(-heading);
+                strafe * sin
+                        + forward * cos;
 
         return driveRobotCentric(
                 rotatedForward,
@@ -228,7 +252,6 @@ public class MecanumDrive {
             double backLeftPower,
             double backRightPower
     ) {
-
         frontLeft.setPower(
                 clamp(frontLeftPower)
                         * speedMultiplier
@@ -253,7 +276,6 @@ public class MecanumDrive {
     }
 
     public MecanumDrive stop() {
-
         frontLeft.stop();
         frontRight.stop();
         backLeft.stop();
@@ -263,7 +285,6 @@ public class MecanumDrive {
     }
 
     public MecanumDrive brake() {
-
         frontLeft.brake();
         frontRight.brake();
         backLeft.brake();
@@ -273,7 +294,6 @@ public class MecanumDrive {
     }
 
     public MecanumDrive coast() {
-
         frontLeft.coast();
         frontRight.coast();
         backLeft.coast();
@@ -285,15 +305,14 @@ public class MecanumDrive {
     public MecanumDrive setDriveMode(
             DriveMode driveMode
     ) {
-
         if (driveMode == null) {
             throw new IllegalArgumentException(
                     "DriveMode cannot be null"
             );
         }
 
-        if (driveMode
-                == DriveMode.FIELD_CENTRIC
+        if (driveMode ==
+                DriveMode.FIELD_CENTRIC
                 && imu == null) {
 
             throw new IllegalStateException(
@@ -306,41 +325,41 @@ public class MecanumDrive {
         return this;
     }
 
+    public MecanumDrive fieldCentric() {
+        return setDriveMode(
+                DriveMode.FIELD_CENTRIC
+        );
+    }
+
+    public MecanumDrive robotCentric() {
+        return setDriveMode(
+                DriveMode.ROBOT_CENTRIC
+        );
+    }
+
+    public MecanumDrive toggleDriveMode() {
+        if (isFieldCentric()) {
+            return robotCentric();
+        }
+
+        return fieldCentric();
+    }
+
     public DriveMode getDriveMode() {
         return driveMode;
     }
 
-    public MecanumDrive toggleDriveMode() {
-
-        if (driveMode
-                == DriveMode.ROBOT_CENTRIC) {
-
-            setDriveMode(
-                    DriveMode.FIELD_CENTRIC
-            );
-
-        } else {
-
-            setDriveMode(
-                    DriveMode.ROBOT_CENTRIC
-            );
-        }
-
-        return this;
-    }
-
     public boolean isFieldCentric() {
-        return driveMode
-                == DriveMode.FIELD_CENTRIC;
+        return driveMode ==
+                DriveMode.FIELD_CENTRIC;
     }
 
     public MecanumDrive setSpeedMultiplier(
             double multiplier
     ) {
-
         speedMultiplier =
-                clamp(
-                        Math.abs(multiplier)
+                clampPositive(
+                        multiplier
                 );
 
         return this;
@@ -351,7 +370,6 @@ public class MecanumDrive {
     }
 
     public MecanumDrive resetHeading() {
-
         requireIMU();
 
         headingOffset =
@@ -361,12 +379,11 @@ public class MecanumDrive {
     }
 
     public MecanumDrive resetYaw() {
-
         requireIMU();
 
         imu.resetYaw();
 
-        headingOffset = 0;
+        headingOffset = 0.0;
 
         return this;
     }
@@ -375,8 +392,13 @@ public class MecanumDrive {
             double heading,
             AngleUnit unit
     ) {
-
         requireIMU();
+
+        if (unit == null) {
+            throw new IllegalArgumentException(
+                    "AngleUnit cannot be null"
+            );
+        }
 
         double desiredHeading =
                 unit == AngleUnit.DEGREES
@@ -384,14 +406,15 @@ public class MecanumDrive {
                         : heading;
 
         headingOffset =
-                getRawHeadingRadians()
-                        - desiredHeading;
+                normalizeRadians(
+                        getRawHeadingRadians()
+                                - desiredHeading
+                );
 
         return this;
     }
 
     public double getHeadingRadians() {
-
         requireIMU();
 
         return normalizeRadians(
@@ -401,7 +424,6 @@ public class MecanumDrive {
     }
 
     public double getHeadingDegrees() {
-
         return Math.toDegrees(
                 getHeadingRadians()
         );
@@ -410,6 +432,11 @@ public class MecanumDrive {
     public double getHeading(
             AngleUnit unit
     ) {
+        if (unit == null) {
+            throw new IllegalArgumentException(
+                    "AngleUnit cannot be null"
+            );
+        }
 
         if (unit == AngleUnit.DEGREES) {
             return getHeadingDegrees();
@@ -419,7 +446,6 @@ public class MecanumDrive {
     }
 
     public MecanumDrive setIMU(IMU imu) {
-
         if (imu == null) {
             throw new IllegalArgumentException(
                     "IMU cannot be null"
@@ -429,6 +455,10 @@ public class MecanumDrive {
         this.imu = imu;
 
         return this;
+    }
+
+    public boolean hasIMU() {
+        return imu != null;
     }
 
     public IMU getIMU() {
@@ -452,6 +482,7 @@ public class MecanumDrive {
     }
 
     private double getRawHeadingRadians() {
+        requireIMU();
 
         YawPitchRollAngles angles =
                 imu.getRobotYawPitchRollAngles();
@@ -462,7 +493,6 @@ public class MecanumDrive {
     }
 
     private void requireIMU() {
-
         if (imu == null) {
             throw new IllegalStateException(
                     "This operation requires an IMU"
@@ -470,31 +500,58 @@ public class MecanumDrive {
         }
     }
 
-    private static double normalizeRadians(
-            double angle
+    private static void validateMotors(
+            Motor frontLeft,
+            Motor frontRight,
+            Motor backLeft,
+            Motor backRight
     ) {
+        if (frontLeft == null
+                || frontRight == null
+                || backLeft == null
+                || backRight == null) {
 
-        while (angle > Math.PI) {
-            angle -= 2 * Math.PI;
+            throw new IllegalArgumentException(
+                    "MecanumDrive motors cannot be null"
+            );
         }
-
-        while (angle < -Math.PI) {
-            angle += 2 * Math.PI;
-        }
-
-        return angle;
     }
 
     private static double clamp(
             double value
     ) {
-
         return Math.max(
-                -1,
+                -1.0,
                 Math.min(
-                        1,
+                        1.0,
                         value
                 )
         );
+    }
+
+    private static double clampPositive(
+            double value
+    ) {
+        return Math.max(
+                0.0,
+                Math.min(
+                        1.0,
+                        value
+                )
+        );
+    }
+
+    private static double normalizeRadians(
+            double angle
+    ) {
+        while (angle > Math.PI) {
+            angle -= 2.0 * Math.PI;
+        }
+
+        while (angle < -Math.PI) {
+            angle += 2.0 * Math.PI;
+        }
+
+        return angle;
     }
 }
