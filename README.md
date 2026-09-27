@@ -1,2043 +1,76 @@
 # SeramitaeLib
 
-A lightweight and easy-to-use hardware and control library for **FIRST Tech Challenge (FTC)** robots.
+A Java library for FIRST Tech Challenge (FTC) robots, providing hardware wrappers, motor and servo groups, feedback controllers, feedforward utilities, mecanum drivetrain control, Kalman filtering, and motion profiling.
 
-SeramitaeLib provides wrappers around common FTC SDK hardware components, hardware groups, controllers, and feedforward utilities to make robot code cleaner, easier to read, and faster to write.
+SeramitaeLib is designed to simplify robot programming, reduce repetitive hardware code, and provide reusable components for FTC projects.
 
 ## Features
 
-SeramitaeLib currently includes:
+- Motor and servo hardware wrappers
+- Motor, servo, and continuous-rotation servo groups
+- PID and other feedback controllers
+- Feedforward utilities for motors, arms, and elevators
+- Field-centric and robot-centric mecanum drivetrain
+- One-dimensional Kalman filter
+- Trapezoidal and triangular motion profiles
+- Compatibility with the FTC SDK
 
-### Hardware
+## Installation
 
-* `Motor`
-* `MotorEx`
-* `MotorGroup`
-* `ServoEx`
-* `ServoGroup`
-* `CRServoEx`
-* `CRServoGroup`
-* `RGBLight`
-* `MecanumDrive`
+SeramitaeLib is distributed through GitHub Packages.
 
-### Controllers
+### 1. Add the Maven repository
 
-* `Controller`
-* `PController`
-* `PDController`
-* `PIDController`
-* `PIDFController`
-* `SquIDController`
-* `SquIDFController`
-
-### Feedforward
-
-* `SimpleMotorFeedforward`
-* `ArmFeedforward`
-* `ElevatorFeedforward`
-
-### Other Features
-
-* Motor encoder utilities
-* Software encoder reset
-* Position control
-* Velocity control
-* Motor current monitoring
-* Motor stall detection
-* Power caching
-* Servo caching
-* Hardware grouping
-* Individual group-member inversion
-* Position and velocity tolerances
-* Integral limiting
-* Minimum controller output
-* Fluent APIs
-
----
-
-# Installation
-
-Add the GitHub Packages repository to your FTC project:
+Add the repository to your FTC project's Gradle configuration:
 
 ```gradle
-repositories {
-    maven {
-        url = uri("https://maven.pkg.github.com/Matteo0205/seramitaelib")
+maven {
+    url = uri("https://maven.pkg.github.com/Matteo0205/seramitaelib")
 
-        credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
-        }
+    credentials {
+        username = System.getenv("GITHUB_ACTOR")
+        password = System.getenv("GITHUB_TOKEN")
     }
 }
 ```
 
-Then add SeramitaeLib as a dependency:
+GitHub Packages requires authentication. Configure `GITHUB_ACTOR` and `GITHUB_TOKEN` with credentials that have permission to read the package.
+
+### 2. Add the dependency
+
+In your FTC project's `TeamCode/build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'org.seramitae:seramitaelib:0.2.3'
+    implementation 'org.seramitae:seramitaelib:VERSION'
 }
 ```
 
-Replace `0.2.3` with the version you want to use.
+Replace `VERSION` with the version you have published to GitHub Packages.
 
-Your GitHub credentials can be stored in `gradle.properties`:
+Sync Gradle after adding the dependency.
 
-```properties
-gpr.user=YOUR_GITHUB_USERNAME
-gpr.key=YOUR_GITHUB_TOKEN
-```
-
-> **Important:** Never commit your GitHub token to a public repository.
-
----
-
-# Motor
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Motor.Motor;
-```
-
-`Motor` is a wrapper around the FTC motor API that provides a simpler interface for controlling motors, encoders, position, and velocity.
-
-## Creating a Motor
-
-```java
-Motor motor = new Motor(
-        hardwareMap,
-        "motor"
-);
-```
-
-You can also specify the motor's CPR and RPM:
-
-```java
-Motor motor = new Motor(
-        hardwareMap,
-        "motor",
-        537.7,
-        312
-);
-```
-
-## Power Control
-
-```java
-motor.setPower(1);
-```
-
-Stop:
-
-```java
-motor.stop();
-```
-
-You can also use:
-
-```java
-motor.set(0.5);
-```
-
-The behavior of `set()` depends on the selected `RunMode`.
-
-## Maximum Power
-
-```java
-motor.setMaxPower(0.7);
-```
-
-Calling:
-
-```java
-motor.setPower(1);
-```
-
-will now limit the output to `0.7`.
-
-Read the configured limit:
-
-```java
-double maxPower = motor.getMaxPower();
-```
-
-## Motor Direction
-
-```java
-motor.reverse();
-
-motor.forward();
-
-motor.setInverted(true);
-```
-
-Check inversion:
-
-```java
-boolean inverted = motor.isInverted();
-```
-
-## Zero Power Behavior
-
-Brake:
-
-```java
-motor.brake();
-```
-
-Float/coast:
-
-```java
-motor.coast();
-```
-
----
-
-# Motor Run Modes
-
-SeramitaeLib provides three high-level motor modes:
-
-```java
-Motor.RunMode.RawPower
-Motor.RunMode.VelocityControl
-Motor.RunMode.PositionControl
-```
-
-Example:
-
-```java
-motor.setRunMode(
-        Motor.RunMode.RawPower
-);
-```
-
-## Raw Power
-
-```java
-motor.setRunMode(
-        Motor.RunMode.RawPower
-);
-
-motor.set(0.8);
-```
-
-In `RawPower`, `set()` directly controls motor power.
-
----
-
-# Motor Position Control
-
-```java
-motor.setRunMode(
-        Motor.RunMode.PositionControl
-);
-
-motor.setPositionCoefficient(0.005);
-motor.setPositionTolerance(15);
-
-motor.setTargetPosition(1200);
-```
-
-Update the controller:
-
-```java
-motor.set(0.8);
-```
-
-The value passed to `set()` represents the maximum output allowed for the position controller.
-
-Check the target:
-
-```java
-if (motor.atTargetPosition()) {
-    motor.stop();
-}
-```
-
----
-
-# Motor Velocity Control
-
-```java
-motor.setRunMode(
-        Motor.RunMode.VelocityControl
-);
-```
-
-Configure PID:
-
-```java
-motor.setVeloCoefficients(
-        0.01,
-        0,
-        0
-);
-```
-
-Configure feedforward:
-
-```java
-motor.setFeedforwardCoefficients(
-        0.05,
-        0.0004
-);
-```
-
-Then:
-
-```java
-motor.set(0.5);
-```
-
-represents 50% of the calculated maximum motor velocity.
-
----
-
-# Encoder
-
-Every `Motor` contains an encoder utility:
-
-```java
-motor.encoder
-```
-
-Position:
-
-```java
-int position =
-        motor.getCurrentPosition();
-```
-
-or:
-
-```java
-int position =
-        motor.encoder.getPosition();
-```
-
-Velocity:
-
-```java
-double velocity =
-        motor.getVelocity();
-```
-
-Corrected velocity:
-
-```java
-double velocity =
-        motor.getCorrectedVelocity();
-```
-
-## Software Encoder Reset
-
-```java
-motor.resetEncoder();
-```
-
-This resets the logical encoder position using a software offset without changing the FTC SDK motor run mode.
-
-For a full hardware reset:
-
-```java
-motor.stopAndResetEncoder();
-```
-
-## Revolutions
-
-When CPR is configured:
-
-```java
-double revolutions =
-        motor.encoder.getRevolutions();
-```
-
-## Distance Per Pulse
-
-```java
-motor.setDistancePerPulse(0.01);
-```
-
-Read distance:
-
-```java
-double distance =
-        motor.getDistance();
-```
-
-Set a target using distance:
-
-```java
-motor.setTargetDistance(50);
-```
-
----
-
-# MotorEx
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Motor.MotorEx;
-```
-
-`MotorEx` extends `Motor` and adds functionality designed around FTC's `DcMotorEx`.
-
-Features include:
-
-* Direct velocity control
-* Power caching
-* Current sensing
-* Current alerts
-* Stall detection
-
-Create one:
-
-```java
-MotorEx motor = new MotorEx(
-        hardwareMap,
-        "motor"
-);
-```
-
-Or with CPR and RPM:
-
-```java
-MotorEx motor = new MotorEx(
-        hardwareMap,
-        "motor",
-        537.7,
-        312
-);
-```
-
-## Direct Velocity
-
-```java
-motor.setVelocity(1400);
-```
-
-Read velocity:
-
-```java
-double velocity =
-        motor.getVelocity();
-```
-
-Angular units are also supported:
-
-```java
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
-motor.setVelocity(
-        100,
-        AngleUnit.RADIANS
-);
-```
-
-Read angular velocity:
-
-```java
-double velocity =
-        motor.getVelocity(
-                AngleUnit.RADIANS
-        );
-```
-
-## Power Caching
-
-```java
-motor.setCachingTolerance(0.01);
-```
-
-Repeated commands inside the configured tolerance do not require unnecessary hardware writes.
-
-```java
-motor.setPower(0.7);
-motor.setPower(0.7);
-motor.setPower(0.7);
-```
-
-Clear the cache:
-
-```java
-motor.clearCache();
-```
-
-Force a write:
-
-```java
-motor.forceSetPower(0.7);
-```
-
-## Current Monitoring
-
-```java
-double amps =
-        motor.getCurrent();
-```
-
-Specify another unit:
-
-```java
-import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
-
-double milliamps =
-        motor.getCurrent(
-                CurrentUnit.MILLIAMPS
-        );
-```
-
-## Current Alerts
-
-```java
-motor.setCurrentAlert(
-        5,
-        CurrentUnit.AMPS
-);
-```
-
-Then:
-
-```java
-if (motor.isOverCurrent()) {
-    motor.stop();
-}
-```
-
-## Stall Detection
-
-Using power and velocity:
-
-```java
-if (motor.isStalled(
-        0.8,
-        50
-)) {
-    motor.stop();
-}
-```
-
-Using power, velocity, and current:
-
-```java
-if (motor.isStalled(
-        0.8,
-        50,
-        4.5
-)) {
-    motor.stop();
-}
-```
-
----
-
-# MotorGroup
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Motor.MotorGroup;
-```
-
-`MotorGroup` allows multiple motors to be controlled as a single logical motor group.
-
-Create two motors:
-
-```java
-MotorEx leftFront =
-        new MotorEx(
-                hardwareMap,
-                "leftFront"
-        );
-
-MotorEx leftBack =
-        new MotorEx(
-                hardwareMap,
-                "leftBack"
-        );
-```
-
-Create the group:
-
-```java
-MotorGroup left = new MotorGroup(
-        leftFront,
-        leftBack
-);
-```
-
-Control both:
-
-```java
-left.setPower(1);
-```
-
-Stop both:
-
-```java
-left.stop();
-```
-
-Configure both:
-
-```java
-left
-        .brake()
-        .setMaxPower(0.8)
-        .setPower(1);
-```
-
-## Individual Motor Inversion
-
-A specific motor can be inverted:
-
-```java
-left.setInverted(
-        1,
-        true
-);
-```
-
-For example, a dual-motor mechanism can use:
-
-```java
-MotorGroup shooter =
-        new MotorGroup(
-                shooterLeft,
-                shooterRight
-        );
-
-shooter.setInverted(0, false);
-shooter.setInverted(1, true);
-
-shooter.setPower(1);
-```
-
-## Group Position Control
-
-```java
-liftGroup.setRunMode(
-        Motor.RunMode.PositionControl
-);
-
-liftGroup.setPositionCoefficient(0.005);
-liftGroup.setPositionTolerance(15);
-liftGroup.setTargetPosition(1500);
-```
-
-Then:
-
-```java
-liftGroup.set(1);
-```
-
-Check all motors:
-
-```java
-if (liftGroup.atTargetPosition()) {
-    liftGroup.stop();
-}
-```
-
-## Access Individual Motors
-
-Leader:
-
-```java
-Motor leader =
-        group.getLeader();
-```
-
-Specific motor:
-
-```java
-Motor second =
-        group.get(1);
-```
-
-Number of motors:
-
-```java
-int count =
-        group.size();
-```
-
----
-
-# ServoEx
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Servo.ServoEx;
-```
-
-Create:
-
-```java
-ServoEx claw = new ServoEx(
-        hardwareMap,
-        "claw"
-);
-```
-
-With angular range:
-
-```java
-ServoEx claw = new ServoEx(
-        hardwareMap,
-        "claw",
-        0,
-        180
-);
-```
-
-## Position
-
-```java
-claw.setPosition(0.5);
-```
-
-Read:
-
-```java
-double position =
-        claw.getPosition();
-```
-
-Relative movement:
-
-```java
-claw.rotateBy(0.1);
-```
-
-## Angle Control
-
-```java
-claw.turnToAngle(90);
-```
-
-Relative:
-
-```java
-claw.rotateByAngle(20);
-```
-
-Read:
-
-```java
-double angle =
-        claw.getAngle();
-```
-
-Radians:
-
-```java
-claw.turnToAngle(
-        Math.PI / 2,
-        AngleUnit.RADIANS
-);
-```
-
-## Range
-
-```java
-claw.setRange(
-        20,
-        160
-);
-```
-
-## Inversion
-
-```java
-claw.setInverted(true);
-
-claw.toggleInverted();
-```
-
-## Caching
-
-```java
-claw.setCachingTolerance(0.01);
-
-claw.clearCache();
-
-claw.forceSetPosition(0.5);
-```
-
-## PWM
-
-```java
-claw.setPwmRange(
-        500,
-        2500
-);
-
-claw.disablePwm();
-
-claw.enablePwm();
-```
-
----
-
-# ServoGroup
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Servo.ServoGroup;
-```
-
-A `ServoGroup` allows multiple `ServoEx` objects to behave like a single servo mechanism.
-
-```java
-ServoEx left =
-        new ServoEx(
-                hardwareMap,
-                "left"
-        );
-
-ServoEx right =
-        new ServoEx(
-                hardwareMap,
-                "right"
-        );
-
-ServoGroup arm =
-        new ServoGroup(
-                left,
-                right
-        );
-```
-
-Move both:
-
-```java
-arm.setPosition(0.5);
-```
-
-Or by angle:
-
-```java
-arm.setRange(0, 180);
-
-arm.turnToAngle(90);
-```
-
-## Individual Inversion
-
-Very useful for mirrored servos:
-
-```java
-arm.setInverted(0, false);
-arm.setInverted(1, true);
-```
-
-You can then treat the entire mechanism as one device:
-
-```java
-arm.setPosition(0.7);
-```
-
-## Relative Movement
-
-```java
-arm.rotateBy(0.1);
-
-arm.rotateByAngle(20);
-```
-
-## Group Caching
-
-```java
-arm.setCachingTolerance(0.01);
-
-arm.clearCache();
-```
-
-## Group PWM
-
-```java
-arm.disablePwm();
-
-arm.enablePwm();
-```
-
-## Access Group Members
-
-```java
-ServoEx leader =
-        arm.getLeader();
-
-ServoEx second =
-        arm.get(1);
-
-int count =
-        arm.size();
-```
-
----
-
-# CRServoEx
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Servo.CRServoEx;
-```
-
-Create:
-
-```java
-CRServoEx intake =
-        new CRServoEx(
-                hardwareMap,
-                "intake"
-        );
-```
-
-Power:
-
-```java
-intake.setPower(1);
-```
-
-Convenience methods:
-
-```java
-intake.forward();
-
-intake.reverse();
-
-intake.stop();
-```
-
-## Inversion
-
-```java
-intake.setInverted(true);
-
-intake.toggleInverted();
-```
-
-## Caching
-
-```java
-intake.setCachingTolerance(0.01);
-
-intake.clearCache();
-
-intake.forceSetPower(1);
-```
-
----
-
-# CRServoGroup
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Servo.CRServoGroup;
-```
-
-Create:
-
-```java
-CRServoEx left =
-        new CRServoEx(
-                hardwareMap,
-                "left"
-        );
-
-CRServoEx right =
-        new CRServoEx(
-                hardwareMap,
-                "right"
-        );
-
-CRServoGroup intake =
-        new CRServoGroup(
-                left,
-                right
-        );
-```
-
-Control the entire group:
-
-```java
-intake.setPower(1);
-```
-
-Convenience methods:
-
-```java
-intake.forward();
-
-intake.reverse();
-
-intake.stop();
-```
-
-## Individual Inversion
-
-```java
-intake.setInverted(0, false);
-intake.setInverted(1, true);
-```
-
-Then:
-
-```java
-intake.setPower(1);
-```
-
-can drive mirrored CR servos in the correct physical direction.
-
-## Caching
-
-```java
-intake.setCachingTolerance(0.01);
-
-intake.clearCache();
-
-intake.forceSetPower(1);
-```
-
-## Access Members
-
-```java
-CRServoEx leader =
-        intake.getLeader();
-
-CRServoEx second =
-        intake.get(1);
-
-int count =
-        intake.size();
-```
-
----
-
-# RGBLight
-
-Import:
-
-```java
-import org.seramitae.ftc.hardware.Lights.RGBLight;
-```
-
-Create:
-
-```java
-RGBLight light =
-        new RGBLight(
-                hardwareMap,
-                "rgb"
-        );
-```
-
-## Built-In Colors
-
-Available colors:
-
-```text
-OFF
-RED
-ORANGE
-YELLOW
-SAGE
-GREEN
-AZURE
-BLUE
-INDIGO
-VIOLET
-WHITE
-```
-
-Convenience methods:
-
-```java
-light.red();
-
-light.orange();
-
-light.yellow();
-
-light.green();
-
-light.blue();
-
-light.violet();
-
-light.white();
-
-light.off();
-```
-
-Enum:
-
-```java
-light.setColor(
-        RGBLight.Color.RED
-);
-```
-
-Example status indicator:
-
-```java
-if (motor.isOverCurrent()) {
-    light.red();
-} else {
-    light.green();
-}
-```
-
-## Range
-
-```java
-light.setPosition(0.5);
-
-light.setColorFromRange(50);
-```
-
-## Caching
-
-```java
-light.setCachingTolerance(0.001);
-
-light.clearCache();
-
-light.forceSetPosition(0.5);
-```
-
----
-
-# MecanumDrive
-
-Import:
-
-```java
-import org.seramitae.ftc.drive.MecanumDrive;
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-```
-
-`MecanumDrive` provides normalized robot-centric and IMU-based field-centric control for four-motor mecanum drivetrains.
-
-Create a drive directly from hardware names:
-
-```java
-MecanumDrive drive = new MecanumDrive(
-        hardwareMap,
-        "frontLeft",
-        "frontRight",
-        "backLeft",
-        "backRight",
-        "imu"
-)
-        .initializeIMU(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
-        )
-        .brake();
-```
-
-Robot-centric control:
-
-```java
-drive.driveRobotCentric(
-        -gamepad1.left_stick_y,
-        gamepad1.left_stick_x,
-        gamepad1.right_stick_x
-);
-```
-
-Field-centric control:
-
-```java
-drive.fieldCentric();
-
-drive.drive(
-        -gamepad1.left_stick_y,
-        gamepad1.left_stick_x,
-        gamepad1.right_stick_x
-);
-```
-
-Other useful operations:
-
-```java
-drive.setSpeedMultiplier(0.6);
-drive.resetHeading();
-drive.resetYaw();
-drive.stop();
-```
-
-Return to robot-centric mode with `drive.robotCentric()`. The IMU is only required for field-centric driving and heading operations; use `drive.hasIMU()` when setup is conditional. Reverse any drivetrain motors as appropriate for your robot using the individual `Motor` accessors, such as `drive.getFrontRight().reverse()`.
-
----
-
-# Controllers
-
-SeramitaeLib includes reusable feedback controllers under:
-
-```java
-org.seramitae.ftc.controller
-```
-
-The controller system includes:
-
-```text
-Controller
-├── PController
-├── PDController
-├── PIDController
-├── PIDFController
-├── SquIDController
-└── SquIDFController
-```
-
----
-
-# Controller Base
-
-`Controller` is the common base for SeramitaeLib feedback controllers.
-
-Common functionality includes:
-
-* Setpoint management
-* Position error
-* Velocity error
-* Position tolerance
-* Velocity tolerance
-* Minimum output
-* Timing
-* Resetting
-* `atSetPoint()`
-
-Example:
-
-```java
-controller.setSetPoint(1000);
-
-double output =
-        controller.calculate(
-                currentPosition
-        );
-```
-
-Check target:
-
-```java
-if (controller.atSetPoint()) {
-    motor.stop();
-}
-```
-
-## Tolerance
-
-Position tolerance:
-
-```java
-controller.setTolerance(10);
-```
-
-Position and velocity tolerance:
-
-```java
-controller.setTolerance(
-        10,
-        5
-);
-```
-
-## Minimum Output
-
-```java
-controller.setMinimumOutput(0.05);
-```
-
-This can help mechanisms overcome static friction when the calculated controller output becomes very small.
-
-## Errors
-
-```java
-double positionError =
-        controller.getPositionError();
-
-double velocityError =
-        controller.getVelocityError();
-```
-
-## Reset
-
-```java
-controller.reset();
-```
-
----
-
-# PController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.PController;
-```
-
-Create:
-
-```java
-PController controller =
-        new PController(
-                0.005
-        );
-```
-
-Set target:
-
-```java
-controller.setSetPoint(1200);
-```
-
-Use it:
-
-```java
-double power =
-        controller.calculate(
-                motor.getCurrentPosition()
-        );
-
-motor.setPower(power);
-```
-
----
-
-# PDController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.PDController;
-```
-
-Create:
-
-```java
-PDController controller =
-        new PDController(
-                0.005,
-                0.0002
-        );
-```
-
-Use:
-
-```java
-controller.setSetPoint(1200);
-
-motor.setPower(
-        controller.calculate(
-                motor.getCurrentPosition()
-        )
-);
-```
-
----
-
-# PIDController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.PIDController;
-```
-
-Create:
-
-```java
-PIDController pid =
-        new PIDController(
-                0.01,
-                0.0001,
-                0.002
-        );
-```
-
-Set target:
-
-```java
-pid.setSetPoint(1500);
-```
-
-In the OpMode loop:
-
-```java
-double power =
-        pid.calculate(
-                motor.getCurrentPosition()
-        );
-
-motor.setPower(power);
-```
-
-Check target:
-
-```java
-if (pid.atSetPoint()) {
-    motor.stop();
-}
-```
-
-Update coefficients:
-
-```java
-pid.setPID(
-        0.012,
-        0.0001,
-        0.001
-);
-```
-
----
-
-# PIDFController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.PIDFController;
-```
-
-Create:
-
-```java
-PIDFController controller =
-        new PIDFController(
-                0.01,
-                0.0001,
-                0.001,
-                0.05
-        );
-```
-
-Set target:
-
-```java
-controller.setSetPoint(1500);
-```
-
-Calculate:
-
-```java
-double output =
-        controller.calculate(
-                motor.getCurrentPosition()
-        );
-```
-
-Update individual coefficients:
-
-```java
-controller.setP(0.02);
-
-controller.setI(0.0002);
-
-controller.setD(0.001);
-
-controller.setF(0.05);
-```
-
-Or all at once:
-
-```java
-controller.setPIDF(
-        0.02,
-        0.0002,
-        0.001,
-        0.05
-);
-```
-
-## Integral Bounds
-
-Integral windup can be limited using:
-
-```java
-controller.setIntegralBounds(
-        -0.3,
-        0.3
-);
-```
-
-Read accumulated integral:
-
-```java
-double integral =
-        controller.getIntegral();
-```
-
----
-
-# SquIDController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.SquIDController;
-```
-
-Create:
-
-```java
-SquIDController controller =
-        new SquIDController(
-                0.05
-        );
-```
-
-Set target:
-
-```java
-controller.setSetPoint(1000);
-```
-
-Calculate output:
-
-```java
-double output =
-        controller.calculate(
-                motor.getCurrentPosition()
-        );
-
-motor.setPower(output);
-```
-
-SquID uses a nonlinear response based on the square root of the absolute position error.
-
-This can provide stronger response when far from the target while becoming smoother as the mechanism approaches the setpoint.
-
----
-
-# SquIDFController
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.SquIDFController;
-```
-
-Create:
-
-```java
-SquIDFController controller =
-        new SquIDFController(
-                0.05,
-                0.03
-        );
-```
-
-Set target:
-
-```java
-controller.setSetPoint(1000);
-```
-
-Use:
-
-```java
-motor.setPower(
-        controller.calculate(
-                motor.getCurrentPosition()
-        )
-);
-```
-
-Update coefficients:
-
-```java
-controller.setSquIDF(
-        0.06,
-        0.025
-);
-```
-
----
-
-# Feedforward
-
-Feedforward helpers are available under:
-
-```java
-org.seramitae.ftc.controller.feedforward
-```
-
-Available helpers:
-
-```text
-SimpleMotorFeedforward
-ArmFeedforward
-ElevatorFeedforward
-```
-
----
-
-# SimpleMotorFeedforward
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.feedforward.SimpleMotorFeedforward;
-```
-
-Useful for mechanisms such as:
-
-* Flywheels
-* Shooters
-* Drivetrains
-* Other rotating mechanisms
-
-Create:
-
-```java
-SimpleMotorFeedforward ff =
-        new SimpleMotorFeedforward(
-                0.07,
-                0.000365
-        );
-```
-
-With acceleration compensation:
-
-```java
-SimpleMotorFeedforward ff =
-        new SimpleMotorFeedforward(
-                0.07,
-                0.000365,
-                0.00005
-        );
-```
-
-Calculate:
-
-```java
-double output =
-        ff.calculate(
-                targetVelocity
-        );
-```
-
-With acceleration:
-
-```java
-double output =
-        ff.calculate(
-                targetVelocity,
-                targetAcceleration
-        );
-```
-
----
-
-# ArmFeedforward
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.feedforward.ArmFeedforward;
-```
-
-Designed for rotating arm mechanisms where gravity changes depending on arm angle.
-
-Create:
-
-```java
-ArmFeedforward ff =
-        new ArmFeedforward(
-                0.05,
-                0.15,
-                0.01
-        );
-```
-
-Calculate:
-
-```java
-double output =
-        ff.calculate(
-                Math.toRadians(armAngle),
-                targetVelocity
-        );
-```
-
-With acceleration:
-
-```java
-double output =
-        ff.calculate(
-                Math.toRadians(armAngle),
-                targetVelocity,
-                targetAcceleration
-        );
-```
-
----
-
-# ElevatorFeedforward
-
-Import:
-
-```java
-import org.seramitae.ftc.controller.feedforward.ElevatorFeedforward;
-```
-
-Designed for vertically moving mechanisms such as:
-
-* Slides
-* Elevators
-* Vertical lifts
-
-Create:
-
-```java
-ElevatorFeedforward ff =
-        new ElevatorFeedforward(
-                0.05,
-                0.10,
-                0.001
-        );
-```
-
-Calculate:
-
-```java
-double output =
-        ff.calculate(
-                targetVelocity
-        );
-```
-
-With acceleration:
-
-```java
-double output =
-        ff.calculate(
-                targetVelocity,
-                targetAcceleration
-        );
-```
-
----
-
-# PID + Feedforward
-
-Feedback and feedforward can be combined.
-
-This is especially useful for mechanisms such as flywheel shooters.
-
-```java
-PIDController pid =
-        new PIDController(
-                0.004,
-                0.0001,
-                0.00005
-        );
-
-SimpleMotorFeedforward ff =
-        new SimpleMotorFeedforward(
-                0.07,
-                0.000365
-        );
-
-pid.setSetPoint(1500);
-```
-
-Then inside the OpMode loop:
-
-```java
-double velocity =
-        shooter.getVelocity();
-
-double feedback =
-        pid.calculate(velocity);
-
-double feedforward =
-        ff.calculate(1500);
-
-double output =
-        feedback + feedforward;
-
-shooter.setPower(output);
-```
-
-The control flow is approximately:
-
-```text
-Target
-  │
-  ├──────────────► Feedforward ──────┐
-  │                                  │
-  ▼                                  ▼
-Error ───────────► PID ────────────► (+)
-  ▲                                  │
-  │                                  ▼
-Sensor ◄──────── Mechanism ◄────── Output
-```
-
----
-
-# Complete Position Control Example
-
-```java
-@TeleOp(name = "PID Lift Example")
-public class PIDLiftExample extends OpMode {
-
-    private MotorEx lift;
-    private PIDController controller;
-
-    @Override
-    public void init() {
-
-        lift = new MotorEx(
-                hardwareMap,
-                "lift"
-        );
-
-        controller =
-                new PIDController(
-                        0.005,
-                        0.0001,
-                        0.0002
-                );
-
-        controller.setTolerance(
-                15,
-                10
-        );
-
-        controller.setSetPoint(1500);
-
-        lift.brake();
-    }
-
-    @Override
-    public void loop() {
-
-        double position =
-                lift.getCurrentPosition();
-
-        double output =
-                controller.calculate(
-                        position
-                );
-
-        lift.setPower(output);
-
-        telemetry.addData(
-                "Position",
-                position
-        );
-
-        telemetry.addData(
-                "Target",
-                controller.getSetPoint()
-        );
-
-        telemetry.addData(
-                "Error",
-                controller.getPositionError()
-        );
-
-        telemetry.addData(
-                "At Target",
-                controller.atSetPoint()
-        );
-
-        telemetry.update();
-    }
-}
-```
-
----
-
-# Complete Shooter Example
-
-```java
-@TeleOp(name = "Shooter Example")
-public class ShooterExample extends OpMode {
-
-    private MotorEx shooter;
-
-    private PIDController pid;
-
-    private SimpleMotorFeedforward ff;
-
-    private static final double TARGET =
-            1500;
-
-    @Override
-    public void init() {
-
-        shooter =
-                new MotorEx(
-                        hardwareMap,
-                        "shooter"
-                );
-
-        pid =
-                new PIDController(
-                        0.004,
-                        0.0001,
-                        0.00005
-                );
-
-        ff =
-                new SimpleMotorFeedforward(
-                        0.07,
-                        0.000365
-                );
-
-        pid.setSetPoint(TARGET);
-
-        pid.setTolerance(25);
-    }
-
-    @Override
-    public void loop() {
-
-        double velocity =
-                shooter.getVelocity();
-
-        double feedback =
-                pid.calculate(
-                        velocity
-                );
-
-        double feedforward =
-                ff.calculate(
-                        TARGET
-                );
-
-        double output =
-                feedback
-                + feedforward;
-
-        shooter.setPower(output);
-
-        telemetry.addData(
-                "Target",
-                TARGET
-        );
-
-        telemetry.addData(
-                "Velocity",
-                velocity
-        );
-
-        telemetry.addData(
-                "Error",
-                pid.getPositionError()
-        );
-
-        telemetry.addData(
-                "Ready",
-                pid.atSetPoint()
-        );
-
-        telemetry.update();
-    }
-}
-```
-
----
-
-# Fluent API
-
-Many SeramitaeLib classes return themselves from configuration methods, allowing method chaining.
-
-Motor:
-
-```java
-MotorEx motor =
-        new MotorEx(
-                hardwareMap,
-                "motor"
-        )
-        .setMaxPower(0.8)
-        .brake()
-        .setCachingTolerance(0.01);
-```
-
-RGB:
-
-```java
-RGBLight status =
-        new RGBLight(
-                hardwareMap,
-                "status"
-        )
-        .setCachingTolerance(0.001)
-        .blue();
-```
-
-Groups:
-
-```java
-MotorGroup drivetrain =
-        new MotorGroup(
-                leftFront,
-                leftBack
-        )
-        .brake()
-        .setMaxPower(0.8);
-```
-
----
-
-# Raw Hardware Access
-
-SeramitaeLib does not prevent direct access to the FTC SDK.
-
-Motor:
-
-```java
-motor.raw();
-```
-
-Servo:
-
-```java
-servo.getServo();
-```
-
-CRServo:
-
-```java
-crServo.getServo();
-```
-
-RGBLight:
-
-```java
-light.raw();
-```
-
-This allows unsupported or advanced FTC SDK functionality to still be used when necessary.
-
----
-
-# Project Structure
-
-The current SeramitaeLib structure is:
+## Project Structure
 
 ```text
 org.seramitae.ftc
 │
-├── controller
+├── hardware
+│   ├── Motor
+│   │   ├── Motor.java
+│   │   ├── MotorEx.java
+│   │   └── MotorGroup.java
 │   │
+│   ├── Servo
+│   │   ├── ServoEx.java
+│   │   ├── ServoGroup.java
+│   │   ├── CRServoEx.java
+│   │   └── CRServoGroup.java
+│   │
+│   └── Lights
+│       └── RGBLight.java
+│
+├── controller
 │   ├── Controller.java
 │   ├── PController.java
 │   ├── PDController.java
@@ -2054,69 +87,831 @@ org.seramitae.ftc
 ├── drive
 │   └── MecanumDrive.java
 │
-└── hardware
-    │
-    ├── Motor
-    │   ├── Motor.java
-    │   ├── MotorEx.java
-    │   └── MotorGroup.java
-    │
-    ├── Servo
-    │   ├── ServoEx.java
-    │   ├── ServoGroup.java
-    │   ├── CRServoEx.java
-    │   └── CRServoGroup.java
-    │
-    └── Lights
-        └── RGBLight.java
+├── filter
+│   └── KalmanFilter.java
+│
+└── motion
+    └── MotionProfile.java
 ```
 
----
+# Hardware
 
-# Design Goals
+## Motor
 
-SeramitaeLib aims to provide:
+Package: `org.seramitae.ftc.hardware.Motor`
 
-* Cleaner FTC robot code
-* Less repetitive hardware code
-* Easy-to-use hardware wrappers
-* Reusable feedback controllers
-* Feedforward utilities
-* Better hardware write efficiency
-* Useful motor safety utilities
-* Simple encoder utilities
-* Multi-device hardware groups
-* Readable APIs
-* Fluent configuration
-* Compatibility with the FTC SDK
-* Direct access to the underlying FTC hardware when needed
+`Motor` is a wrapper around the FTC SDK's `DcMotorEx` interface. It simplifies motor initialization, direction, braking, power control, encoder access, and supported control modes.
 
-The library is designed so developers can use as much or as little of it as they want without losing access to the standard FTC SDK.
+### Basic usage
 
----
+```java
+import org.seramitae.ftc.hardware.Motor.Motor;
 
-# Contributing
+Motor motor = new Motor(
+        hardwareMap,
+        "intake"
+);
 
-Contributions, bug reports, and feature suggestions are welcome.
+motor.forward();
+motor.brake();
 
-When reporting a problem, consider including:
+motor.setPower(1.0);
+```
 
-* SeramitaeLib version
-* FTC SDK version
-* Relevant code
-* Expected behavior
-* Actual behavior
-* Error logs or stack traces
+Stop the motor:
 
+```java
+motor.stop();
+```
 
+Reverse its direction:
 
----
+```java
+motor.reverse();
+```
 
+Set the zero-power behavior:
 
+```java
+motor.brake();
+```
 
+Or:
 
-## AI Disclaimer
+```java
+motor.coast();
+```
 
-This README was created with the assistance of artificial intelligence (AI). AI was used to help organize the documentation, explain the library's features, and generate usage examples based on the SeramitaeLib source code and the intended behavior of its APIs.
+### Run modes
 
-While the documentation has been prepared to be as accurate as possible, some examples, descriptions, method signatures, or behaviors may contain errors or may not reflect the latest version of the library. The SeramitaeLib source code should always be considered the definitive reference for the library's actual API and behavior.
+The wrapper provides the following run modes:
+
+| Mode | Purpose |
+|---|---|
+| `RawPower` | Direct motor power control |
+| `VelocityControl` | Velocity-based control |
+| `PositionControl` | Position-based control |
+
+Example:
+
+```java
+motor.setRunMode(
+        Motor.RunMode.RawPower
+);
+```
+
+### Encoder
+
+The motor wrapper also provides encoder-related functionality for reading position and velocity and resetting encoder measurements.
+
+## MotorEx
+
+`MotorEx` extends the basic motor wrapper with additional functionality, including direct velocity access, motor current monitoring, power caching, and stall detection.
+
+### Example
+
+```java
+import org.seramitae.ftc.hardware.Motor.MotorEx;
+
+MotorEx motor = new MotorEx(
+        hardwareMap,
+        "intake",
+        103.8,
+        1620
+);
+
+motor.forward();
+motor.brake();
+
+motor.setPower(1.0);
+```
+
+Read motor velocity:
+
+```java
+double velocity = motor.getVelocity();
+```
+
+Read motor current:
+
+```java
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+
+double current = motor.getCurrent(
+        CurrentUnit.AMPS
+);
+```
+
+Detect a stalled motor using the configured stall-detection parameters:
+
+```java
+boolean stalled = motor.isStalled(1, 4);
+```
+
+## MotorGroup
+
+`MotorGroup` is intended for controlling multiple motors as a single mechanism.
+
+Typical applications include:
+
+- Dual-motor shooters
+- Linear slides
+- Multi-motor intakes
+- Other synchronized motor mechanisms
+
+The group provides shared power, direction, braking, and supported control operations, as well as access to individual members.
+
+## ServoEx
+
+Package: `org.seramitae.ftc.hardware.Servo`
+
+`ServoEx` provides a convenient interface for FTC positional servos.
+
+### Example
+
+```java
+import org.seramitae.ftc.hardware.Servo.ServoEx;
+
+ServoEx servo = new ServoEx(
+        hardwareMap,
+        "servo"
+);
+
+servo.setPosition(0.5);
+```
+
+Move the servo to another position:
+
+```java
+servo.setPosition(1.0);
+```
+
+`ServoEx` can also be used with the library's motion profile to generate gradual position commands.
+
+## ServoGroup
+
+`ServoGroup` is designed to control multiple positional servos together.
+
+It can be used for mechanisms with two or more servos that should receive coordinated position commands.
+
+## CRServoEx
+
+`CRServoEx` provides a wrapper for continuous-rotation servos.
+
+Unlike a positional servo, a continuous-rotation servo is controlled using power rather than a target position.
+
+### Example
+
+```java
+import org.seramitae.ftc.hardware.Servo.CRServoEx;
+
+CRServoEx servo = new CRServoEx(
+        hardwareMap,
+        "spindexer"
+);
+
+servo.setPower(1.0);
+```
+
+Stop the servo:
+
+```java
+servo.stop();
+```
+
+Reverse its rotation:
+
+```java
+servo.setPower(-1.0);
+```
+
+## CRServoGroup
+
+`CRServoGroup` allows multiple continuous-rotation servos to be controlled as one group.
+
+This is useful for mechanisms that require multiple continuous-rotation servos to operate together.
+
+## RGBLight
+
+Package: `org.seramitae.ftc.hardware.Lights`
+
+`RGBLight` is a wrapper for servo-controlled RGB indicators.
+
+### Example
+
+```java
+import org.seramitae.ftc.hardware.Lights.RGBLight;
+
+RGBLight light = new RGBLight(
+        hardwareMap,
+        "light"
+);
+
+light.green();
+```
+
+Change the color:
+
+```java
+light.blue();
+```
+
+Turn the light off:
+
+```java
+light.off();
+```
+
+### Color positions
+
+| Color | Servo position |
+|---|---:|
+| Red | 0.279 |
+| Orange | 0.333 |
+| Yellow | 0.388 |
+| Sage | 0.444 |
+| Green | 0.500 |
+| Azure | 0.555 |
+| Blue | 0.611 |
+| Indigo | 0.666 |
+| Violet | 0.722 |
+
+Actual colors depend on the connected indicator hardware.
+
+# Controllers
+
+Package: `org.seramitae.ftc.controller`
+
+SeramitaeLib includes several feedback controllers for robot mechanisms.
+
+| Controller | Description |
+|---|---|
+| `PController` | Proportional feedback |
+| `PDController` | Proportional and derivative feedback |
+| `PIDController` | Proportional, integral, and derivative feedback |
+| `PIDFController` | PID with an additional feedforward term |
+| `SquIDController` | Square-root-based error feedback |
+| `SquIDFController` | Square-root-based feedback with an additional feedforward term |
+
+## PIDController
+
+A PID controller uses three terms to calculate a control output:
+
+- Proportional (`kP`): responds to the current error.
+- Integral (`kI`): responds to accumulated error.
+- Derivative (`kD`): responds to the rate of change of the error.
+
+### Example
+
+```java
+import org.seramitae.ftc.controller.PIDController;
+
+PIDController controller = new PIDController(
+        0.01,
+        0.0,
+        0.0
+);
+
+controller.setSetPoint(1000);
+```
+
+Inside the OpMode loop:
+
+```java
+double output = controller.calculate(
+        motor.getVelocity()
+);
+
+motor.setPower(
+        Math.max(-1.0, Math.min(1.0, output))
+);
+```
+
+The controller must be updated regularly while the mechanism is operating.
+
+### Changing coefficients
+
+```java
+controller.setPID(
+        0.01,
+        0.001,
+        0.0
+);
+```
+
+### Resetting
+
+```java
+controller.reset();
+```
+
+Resetting the controller is useful when stopping a mechanism or starting a new control operation.
+
+# Feedforward
+
+Package: `org.seramitae.ftc.controller.feedforward`
+
+Feedforward estimates the control effort required to produce a desired movement.
+
+It can be combined with feedback control to improve mechanism response.
+
+## SimpleMotorFeedforward
+
+Designed for motor velocity and acceleration control.
+
+The model is:
+
+`output = kS × sign(velocity) + kV × velocity + kA × acceleration`
+
+Where:
+
+| Parameter | Description |
+|---|---|
+| `kS` | Static friction compensation |
+| `kV` | Velocity coefficient |
+| `kA` | Acceleration coefficient |
+
+## ArmFeedforward
+
+Designed for rotating arm mechanisms.
+
+In addition to velocity and acceleration, it includes a gravity-compensation term based on arm angle.
+
+## ElevatorFeedforward
+
+Designed for vertically moving mechanisms, such as linear slides.
+
+It includes gravity compensation in addition to the other feedforward terms.
+
+Feedforward parameters must be tuned for the actual mechanism.
+
+# MecanumDrive
+
+Package: `org.seramitae.ftc.drive`
+
+`MecanumDrive` provides robot-centric and field-centric mecanum drivetrain control.
+
+### Features
+
+- Robot-centric driving
+- Field-centric driving using the REV Hub IMU
+- Runtime drive mode switching
+- Heading reset
+- Configurable speed multiplier
+- Brake and coast modes
+- Individual motor access
+
+## Initialization
+
+```java
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+
+import org.seramitae.ftc.drive.MecanumDrive;
+import org.seramitae.ftc.hardware.Motor.MotorEx;
+
+MotorEx frontLeft = new MotorEx(
+        hardwareMap,
+        "frontLeft"
+);
+
+MotorEx frontRight = new MotorEx(
+        hardwareMap,
+        "frontRight"
+);
+
+MotorEx backLeft = new MotorEx(
+        hardwareMap,
+        "backLeft"
+);
+
+MotorEx backRight = new MotorEx(
+        hardwareMap,
+        "backRight"
+);
+
+frontLeft.setInverted(true);
+backLeft.setInverted(true);
+
+MecanumDrive drive = new MecanumDrive(
+        frontLeft,
+        frontRight,
+        backLeft,
+        backRight,
+        hardwareMap,
+        "imu"
+);
+
+drive.initializeIMU(
+        RevHubOrientationOnRobot.LogoFacingDirection.UP,
+        RevHubOrientationOnRobot.UsbFacingDirection.RIGHT
+);
+
+drive.brake();
+drive.fieldCentric();
+```
+
+The motor directions and IMU orientation in this example must match your robot's physical configuration.
+
+## Driving
+
+```java
+drive.drive(
+        -gamepad1.left_stick_y,
+        gamepad1.left_stick_x,
+        gamepad1.right_stick_x
+);
+```
+
+The `drive()` method uses the currently selected drive mode.
+
+## Field-centric driving
+
+```java
+drive.fieldCentric();
+```
+
+In field-centric mode, translation commands are interpreted relative to the field rather than the robot's current heading.
+
+An initialized IMU is required.
+
+## Robot-centric driving
+
+```java
+drive.robotCentric();
+```
+
+In robot-centric mode, translation commands are interpreted relative to the robot.
+
+## Toggle drive mode
+
+```java
+drive.toggleDriveMode();
+```
+
+Call this method once per button press, rather than continuously while a button is held.
+
+## Reset heading
+
+```java
+drive.resetHeading();
+```
+
+This sets the current orientation as the new zero heading for the drivetrain.
+
+## Speed multiplier
+
+```java
+drive.setSpeedMultiplier(0.4);
+```
+
+Restore full speed:
+
+```java
+drive.setSpeedMultiplier(1.0);
+```
+
+# KalmanFilter
+
+Package: `org.seramitae.ftc.filter`
+
+`KalmanFilter` implements a one-dimensional Kalman filter.
+
+It combines a predicted state with a measurement to estimate a value while accounting for uncertainty.
+
+Typical applications include filtering motor velocity, distance measurements, and individual position estimates.
+
+## Initialization
+
+```java
+import org.seramitae.ftc.filter.KalmanFilter;
+
+KalmanFilter filter = new KalmanFilter(
+        0.1,
+        4.0
+);
+```
+
+The constructor takes:
+
+| Parameter | Description |
+|---|---|
+| `processVariance` (`Q`) | Uncertainty added during prediction |
+| `measurementVariance` (`R`) | Uncertainty associated with measurements |
+
+## Filtering measurements
+
+```java
+double rawVelocity = motor.getVelocity();
+
+double filteredVelocity = filter.update(
+        rawVelocity
+);
+```
+
+Call `update()` whenever a new measurement is available.
+
+## Prediction and correction
+
+The filter also supports an externally calculated state change.
+
+```java
+filter.predict(
+        predictedPositionChange
+);
+
+double estimatedPosition = filter.correct(
+        measuredPosition
+);
+```
+
+Both operations can be combined:
+
+```java
+double estimatedPosition = filter.update(
+        measuredPosition,
+        predictedPositionChange
+);
+```
+
+The predicted change must represent the estimated actual change in the state, not merely the desired movement.
+
+## Resetting
+
+```java
+filter.reset(
+        0.0,
+        1.0
+);
+```
+
+## Available methods
+
+| Method | Purpose |
+|---|---|
+| `predict(stateChange)` | Predict the next state |
+| `correct(measurement)` | Correct the estimate |
+| `update(measurement)` | Predict and correct |
+| `update(measurement, stateChange)` | Predict with a supplied change, then correct |
+| `reset(estimate, covariance)` | Reset the filter |
+| `getEstimate()` | Get the estimated state |
+| `getCovariance()` | Get the current uncertainty |
+| `getGain()` | Get the most recent Kalman gain |
+| `setProcessVariance(value)` | Change process variance |
+| `setMeasurementVariance(value)` | Change measurement variance |
+
+This is a scalar Kalman filter. It does not implement full multidimensional robot pose estimation.
+
+# MotionProfile
+
+Package: `org.seramitae.ftc.motion`
+
+`MotionProfile` generates a one-dimensional trajectory with configurable maximum velocity, acceleration, and deceleration.
+
+It supports trapezoidal profiles and automatically generates triangular profiles when the requested movement is too short to reach maximum velocity.
+
+## Initialization
+
+```java
+import org.seramitae.ftc.motion.MotionProfile;
+
+MotionProfile profile = new MotionProfile(
+        0.0,
+        1200.0,
+        800.0,
+        1600.0,
+        1200.0
+);
+```
+
+Constructor parameters:
+
+| Parameter | Description |
+|---|---|
+| `start` | Starting position |
+| `goal` | Target position |
+| `maxVelocity` | Maximum velocity |
+| `maxAcceleration` | Maximum acceleration |
+| `maxDeceleration` | Maximum deceleration |
+
+For equal acceleration and deceleration, use the four-argument constructor:
+
+```java
+MotionProfile profile = new MotionProfile(
+        0.0,
+        1200.0,
+        800.0,
+        1600.0
+);
+```
+
+## Reading the profile
+
+```java
+MotionProfile.State state =
+        profile.calculate(timeSeconds);
+
+double position = state.position;
+double velocity = state.velocity;
+double acceleration = state.acceleration;
+```
+
+Time is expressed in seconds.
+
+## Checking completion
+
+```java
+if (profile.isFinished(timeSeconds)) {
+    // Profile completed
+}
+```
+
+The motion profile generates reference values. It does not directly control the motor or verify that the mechanism reached its destination.
+
+# MotionProfile — Complete Servo Example
+
+This example uses `MotionProfile` and `ServoEx` to move a positional servo smoothly between `0.0` and `1.0`.
+
+Press **A** to move to `1.0` and **B** to return to `0.0`.
+
+A new profile starts from the last commanded position whenever a button is pressed.
+
+## MotionProfileServoTest.java
+
+```java
+package org.firstinspires.ftc.teamcode.OpModes;
+
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.seramitae.ftc.hardware.Servo.ServoEx;
+import org.seramitae.ftc.motion.MotionProfile;
+
+@TeleOp(
+        name = "Motion Profile Servo",
+        group = "Test"
+)
+public class MotionProfileServoTest extends OpMode {
+
+    private ServoEx servo;
+
+    private MotionProfile profile;
+    private ElapsedTime timer;
+
+    private double currentPosition = 0.0;
+
+    public static double MAX_VELOCITY = 0.5;
+    public static double MAX_ACCELERATION = 1.0;
+    public static double MAX_DECELERATION = 1.0;
+
+    @Override
+    public void init() {
+
+        servo = new ServoEx(
+                hardwareMap,
+                "servo"
+        );
+
+        servo.setPosition(0.0);
+
+        timer = new ElapsedTime();
+    }
+
+    @Override
+    public void loop() {
+
+        if (gamepad1.aWasPressed()) {
+            moveTo(1.0);
+        }
+
+        if (gamepad1.bWasPressed()) {
+            moveTo(0.0);
+        }
+
+        if (profile != null) {
+
+            double elapsed = timer.seconds();
+
+            MotionProfile.State state =
+                    profile.calculate(elapsed);
+
+            currentPosition = state.position;
+
+            servo.setPosition(currentPosition);
+
+            if (profile.isFinished(elapsed)) {
+                profile = null;
+            }
+        }
+
+        telemetry.addData(
+                "Servo Position",
+                currentPosition
+        );
+
+        telemetry.addData(
+                "Profile Active",
+                profile != null
+        );
+
+        telemetry.update();
+    }
+
+    private void moveTo(double target) {
+
+        profile = new MotionProfile(
+                currentPosition,
+                target,
+                MAX_VELOCITY,
+                MAX_ACCELERATION,
+                MAX_DECELERATION
+        );
+
+        timer.reset();
+    }
+}
+```
+
+## Servo profile configuration
+
+| Parameter | Default | Description |
+|---|---:|---|
+| `MAX_VELOCITY` | 0.5 | Maximum commanded position change per second |
+| `MAX_ACCELERATION` | 1.0 | Maximum commanded acceleration |
+| `MAX_DECELERATION` | 1.0 | Maximum commanded deceleration |
+
+With these values, a full movement from `0.0` to `1.0` takes approximately 2.5 seconds.
+
+## How the example works
+
+1. A button press creates a new motion profile.
+2. The timer starts from zero.
+3. Each OpMode loop calculates the profile's desired position.
+4. `ServoEx` receives the new position.
+5. Once the profile finishes, the servo remains at the final commanded position.
+
+A standard positional servo has its own internal controller. This example controls the sequence of commanded positions rather than measuring or directly controlling the servo's physical velocity.
+
+When the destination changes during movement, the example starts a new rest-to-rest profile. Because the new profile assumes zero initial velocity, the commanded velocity may change abruptly.
+
+# Combining MotionProfile and KalmanFilter
+
+`MotionProfile` and `KalmanFilter` can be used together in a mechanism with position feedback.
+
+The motion profile generates the desired position. The Kalman filter estimates the measured position.
+
+```java
+MotionProfile profile = new MotionProfile(
+        0.0,
+        1200.0,
+        800.0,
+        1600.0
+);
+
+KalmanFilter filter = new KalmanFilter(
+        0.1,
+        4.0
+);
+```
+
+Inside the OpMode loop:
+
+```java
+double elapsed = timer.seconds();
+
+MotionProfile.State reference =
+        profile.calculate(elapsed);
+
+double measuredPosition =
+        motor.getCurrentPosition();
+
+double estimatedPosition =
+        filter.update(measuredPosition);
+
+double error =
+        reference.position - estimatedPosition;
+```
+
+The resulting reference and estimate can be supplied to a feedback controller.
+
+For a positional servo without an external position sensor, the Kalman filter cannot determine the actual shaft position from commanded positions alone.
+
+# Publishing Updates
+
+After adding new classes or modifying existing APIs, update the library's version before publishing.
+
+For example, after publishing a new version, update your FTC project's dependency:
+
+```gradle
+implementation 'org.seramitae:seramitaelib:NEW_VERSION'
+```
+
+The exact publishing procedure depends on your Gradle publishing configuration and GitHub Actions workflow.
+
+# AI Disclaimer
+
+This README was created with the assistance of artificial intelligence (AI). AI was used to help organize the documentation, explain the library's features, and generate usage examples based on the intended behavior of its APIs.
+
+While the documentation has been prepared to be as accurate as possible, some examples, descriptions, method signatures, or behaviors may contain errors or may not reflect the latest version of the library.
+
+The SeramitaeLib source code should always be considered the definitive reference for the library's actual API and behavior.
